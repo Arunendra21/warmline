@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WarmLine — AI Companion</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="logo" aria-hidden="true">&#9825;</div>
+        <div>
+          <h1>WarmLine</h1>
+          <p>A warm, multilingual voice companion</p>
+        </div>
+      </header>
+
+      <div class="controls">
+        <label class="visually-hidden" for="lang">Language</label>
+        <select id="lang" class="lang-select" title="Language you'll speak">
+          <option value="en-US">English</option>
+          <option value="ko-KR">한국어 (Korean)</option>
+          <option value="hi-IN">हिन्दी (Hindi)</option>
+          <option value="es-ES">Español (Spanish)</option>
+        </select>
+        <button id="familyBtn" class="ghost-btn">Family view</button>
+        <button id="clearBtn" class="ghost-btn">New chat</button>
+        <span id="provider" class="provider-pill">connecting…</span>
+      </div>
+
+      <div id="conversation" class="conversation">
+        <div class="empty" id="empty">
+          Tap <strong>Hold to talk</strong> and say hello — or type below.<br />
+          I'll reply in whatever language you speak.
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="dock">
+      <div class="dock-inner">
+        <div class="talk-row">
+          <button id="talkBtn" class="talk-btn">🎤 Hold to talk</button>
+        </div>
+        <div class="text-row">
+          <input
+            id="textInput"
+            class="text-input"
+            type="text"
+            placeholder="…or type a message and press Enter"
+            autocomplete="off"
+          />
+          <button id="sendBtn" class="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <h2 id="modalTitle">Family update</h2>
+        <div class="sub">A gentle summary of today's conversation</div>
+        <div class="mood-line">
+          <span>Overall mood:</span>
+          <span id="modalMood" class="chip neutral">neutral</span>
+        </div>
+        <ul id="modalSummary"></ul>
+        <div id="modalFlags" class="flags" style="display: none"></div>
+        <button class="close-btn" id="closeModal">Close</button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+# Render.com blueprint — free deploy of WarmLine.
+# After pushing to GitHub, create a Blueprint on render.com from this repo.
+# Set GROQ_API_KEY in the Render dashboard (it is kept secret, never in the repo).
+services:
+  - type: web
+    name: warmline
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # set this secret manually in the Render dashboard
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
