@@ -34,12 +34,27 @@ fetch("/api/health")
   .catch(() => (providerPill.textContent = "offline"));
 
 // ---------- rendering ----------
+const EMOTION_EMOJI = {
+  happy: "😊",
+  content: "🙂",
+  neutral: "😐",
+  lonely: "🫂",
+  anxious: "😟",
+  sad: "😢",
+};
+
 function setStatus(text) {
   statusEl.textContent = text || "";
 }
 
+function removeEmpty() {
+  const e = document.getElementById("empty");
+  if (e) e.remove();
+}
+
 function addBubble(role, text, emotion) {
-  if (emptyEl) emptyEl.remove();
+  removeEmpty();
+  removeTyping();
   const b = document.createElement("div");
   b.className = `bubble ${role}`;
   const p = document.createElement("div");
@@ -50,13 +65,28 @@ function addBubble(role, text, emotion) {
     meta.className = "meta";
     const chip = document.createElement("span");
     chip.className = `chip ${emotion}`;
-    chip.textContent = emotion;
+    chip.textContent = `${EMOTION_EMOJI[emotion] || ""} ${emotion}`.trim();
     meta.appendChild(chip);
     b.appendChild(meta);
   }
   conversationEl.appendChild(b);
   b.scrollIntoView({ behavior: "smooth", block: "end" });
   return b;
+}
+
+// Animated "…" bubble shown while the companion is thinking.
+function showTyping() {
+  removeTyping();
+  const t = document.createElement("div");
+  t.className = "typing";
+  t.id = "typing";
+  t.innerHTML = "<span></span><span></span><span></span>";
+  conversationEl.appendChild(t);
+  t.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+function removeTyping() {
+  const t = document.getElementById("typing");
+  if (t) t.remove();
 }
 
 // ---------- text to speech ----------
@@ -86,6 +116,7 @@ async function sendUserText(text) {
   addBubble("user", trimmed);
   messages.push({ role: "user", content: trimmed });
   setStatus("Thinking…");
+  showTyping();
   talkBtn.disabled = true;
   sendBtn.disabled = true;
   try {
@@ -106,6 +137,7 @@ async function sendUserText(text) {
     speak(reply, data.lang);
   } catch (e) {
     setStatus("");
+    removeTyping();
     addBubble("agent", "Sorry, I had trouble answering just now. Let's try again.", "neutral");
   } finally {
     busy = false;
@@ -259,7 +291,7 @@ clearBtn.addEventListener("click", () => {
   if (!messages.length) return;
   messages = [];
   conversationEl.innerHTML =
-    '<div class="empty" id="empty">New conversation started. Tap <strong>Hold to talk</strong> or type below.</div>';
+    '<div class="empty" id="empty"><div class="empty-emoji">🌿</div><p>New conversation started.</p><p class="empty-sub">Hold the <strong>Talk</strong> button or type below whenever you\'re ready.</p></div>';
   window.speechSynthesis && window.speechSynthesis.cancel();
   setStatus("");
 });

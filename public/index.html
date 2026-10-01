@@ -2,48 +2,80 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
     <title>WarmLine — AI Companion</title>
+    <meta name="description" content="A warm, multilingual, emotion-aware AI voice companion for senior care." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app">
-      <header>
-        <div class="logo" aria-hidden="true">&#9825;</div>
-        <div>
-          <h1>WarmLine</h1>
-          <p>A warm, multilingual voice companion</p>
+    <div class="aurora" aria-hidden="true">
+      <span class="orb orb-1"></span>
+      <span class="orb orb-2"></span>
+      <span class="orb orb-3"></span>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+            <path
+              d="M12 21s-7.5-4.6-10-9.3C.3 8.2 2 4.5 5.5 4.5c2 0 3.4 1.1 4.3 2.4l.2.3.2-.3c.9-1.3 2.3-2.4 4.3-2.4 3.5 0 5.2 3.7 3.5 7.2C19.5 16.4 12 21 12 21z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="pulse-ring"></span>
         </div>
-      </header>
+        <div class="brand-text">
+          <h1>WarmLine</h1>
+          <p><span class="live-dot"></span>A warm, multilingual voice companion</p>
+        </div>
+      </div>
 
       <div class="controls">
-        <label class="visually-hidden" for="lang">Language</label>
-        <select id="lang" class="lang-select" title="Language you'll speak">
-          <option value="en-US">English</option>
-          <option value="ko-KR">한국어 (Korean)</option>
-          <option value="hi-IN">हिन्दी (Hindi)</option>
-          <option value="es-ES">Español (Spanish)</option>
-        </select>
-        <button id="familyBtn" class="ghost-btn">Family view</button>
-        <button id="clearBtn" class="ghost-btn">New chat</button>
+        <div class="select-wrap">
+          <svg class="globe" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" />
+          </svg>
+          <select id="lang" class="lang-select" title="Language you'll speak">
+            <option value="en-US">English</option>
+            <option value="ko-KR">한국어 (Korean)</option>
+            <option value="hi-IN">हिन्दी (Hindi)</option>
+            <option value="es-ES">Español (Spanish)</option>
+          </select>
+        </div>
+        <button id="familyBtn" class="ghost-btn">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 1 0-8 0M3 20a7 7 0 0 1 18 0" stroke-linecap="round"/></svg>
+          Family view
+        </button>
+        <button id="clearBtn" class="ghost-btn">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 1 1 2.3 5.6M4 12V7m0 5h5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          New chat
+        </button>
         <span id="provider" class="provider-pill">connecting…</span>
       </div>
+    </header>
 
+    <main class="app">
       <div id="conversation" class="conversation">
         <div class="empty" id="empty">
-          Tap <strong>Hold to talk</strong> and say hello — or type below.<br />
-          I'll reply in whatever language you speak.
+          <div class="empty-emoji">👋</div>
+          <p>Hold the <strong>Talk</strong> button and say hello — or type below.</p>
+          <p class="empty-sub">I'll listen, reply warmly, and answer in whatever language you speak.</p>
         </div>
       </div>
-    </div>
+    </main>
 
     <div class="status" id="status"></div>
 
-    <div class="dock">
+    <footer class="dock">
       <div class="dock-inner">
-        <div class="talk-row">
-          <button id="talkBtn" class="talk-btn">🎤 Hold to talk</button>
-        </div>
+        <button id="talkBtn" class="talk-btn">🎤 Hold to talk</button>
         <div class="text-row">
           <input
             id="textInput"
@@ -52,17 +84,26 @@
             placeholder="…or type a message and press Enter"
             autocomplete="off"
           />
-          <button id="sendBtn" class="send-btn">Send</button>
+          <button id="sendBtn" class="send-btn" title="Send">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12l16-8-6 16-3-7-7-1z" />
+            </svg>
+          </button>
         </div>
       </div>
-    </div>
+    </footer>
 
     <div class="modal-backdrop" id="modalBackdrop">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <h2 id="modalTitle">Family update</h2>
-        <div class="sub">A gentle summary of today's conversation</div>
+        <div class="modal-head">
+          <div class="modal-icon">💌</div>
+          <div>
+            <h2 id="modalTitle">Family update</h2>
+            <div class="sub">A gentle summary of today's conversation</div>
+          </div>
+        </div>
         <div class="mood-line">
-          <span>Overall mood:</span>
+          <span class="mood-label">Overall mood</span>
           <span id="modalMood" class="chip neutral">neutral</span>
         </div>
         <ul id="modalSummary"></ul>
