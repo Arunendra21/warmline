@@ -170,11 +170,14 @@ if (SR) {
   recognition = new SR();
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
+  recognition.continuous = true; // keep listening until the user taps stop
 
   let finalText = "";
+  let errored = false;
   recognition.onstart = () => {
     listening = true;
     finalText = "";
+    errored = false;
     talkBtn.classList.add("listening");
     talkBtn.textContent = "■ Listening… tap to stop";
     setStatus("Listening…");
@@ -190,7 +193,16 @@ if (SR) {
     setStatus(`“${(finalText || interim).trim()}”`);
   };
   recognition.onerror = (ev) => {
-    setStatus(ev.error === "no-speech" ? "I didn't catch that — try again." : "");
+    const msgs = {
+      "no-speech": "I didn't catch that. Tap Talk and try again.",
+      "not-allowed": "Microphone is blocked. Allow mic access for this site, then tap Talk.",
+      "service-not-allowed": "Microphone is blocked. Allow mic access for this site, then tap Talk.",
+      "audio-capture": "No microphone found. Check your mic, or just type below.",
+      "network": "Speech service had a network hiccup. Please try again.",
+      "aborted": "",
+    };
+    errored = true;
+    setStatus(ev.error in msgs ? msgs[ev.error] : "Voice error: " + ev.error);
   };
   recognition.onend = () => {
     listening = false;
@@ -198,7 +210,7 @@ if (SR) {
     talkBtn.textContent = "🎤 Press to talk";
     const said = finalText.trim();
     if (said) sendUserText(said);
-    else setStatus("");
+    else if (!errored) setStatus("");
   };
 
   // Tap once to start, tap again to stop.
@@ -210,10 +222,12 @@ if (SR) {
       return;
     }
     recognition.lang = langSelect.value;
+    setStatus("Starting microphone…");
     try {
       recognition.start();
-    } catch {
-      /* start() can throw if called while already starting; ignore */
+    } catch (err) {
+      // start() throws if called while a previous session is still closing.
+      setStatus("One moment, tap Talk again.");
     }
   };
   talkBtn.addEventListener("click", toggleListen);
