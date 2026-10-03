@@ -176,7 +176,7 @@ if (SR) {
     listening = true;
     finalText = "";
     talkBtn.classList.add("listening");
-    talkBtn.textContent = "● Listening… (release)";
+    talkBtn.textContent = "■ Listening… tap to stop";
     setStatus("Listening…");
   };
   recognition.onresult = (ev) => {
@@ -195,33 +195,28 @@ if (SR) {
   recognition.onend = () => {
     listening = false;
     talkBtn.classList.remove("listening");
-    talkBtn.textContent = "🎤 Hold to talk";
+    talkBtn.textContent = "🎤 Press to talk";
     const said = finalText.trim();
     if (said) sendUserText(said);
     else setStatus("");
   };
 
-  const startListen = (e) => {
+  // Tap once to start, tap again to stop.
+  const toggleListen = (e) => {
     e.preventDefault();
-    if (listening || busy) return;
+    if (busy) return;
+    if (listening) {
+      recognition.stop();
+      return;
+    }
     recognition.lang = langSelect.value;
     try {
       recognition.start();
     } catch {
-      /* already starting */
+      /* start() can throw if called while already starting; ignore */
     }
   };
-  const stopListen = (e) => {
-    e.preventDefault();
-    if (listening) recognition.stop();
-  };
-
-  // Mouse + touch press-and-hold.
-  talkBtn.addEventListener("mousedown", startListen);
-  talkBtn.addEventListener("mouseup", stopListen);
-  talkBtn.addEventListener("mouseleave", stopListen);
-  talkBtn.addEventListener("touchstart", startListen, { passive: false });
-  talkBtn.addEventListener("touchend", stopListen);
+  talkBtn.addEventListener("click", toggleListen);
 } else {
   // No speech recognition: make the button explain itself, typing still works.
   talkBtn.textContent = "🎤 Voice not supported — type below";
@@ -291,7 +286,7 @@ clearBtn.addEventListener("click", () => {
   if (!messages.length) return;
   messages = [];
   conversationEl.innerHTML =
-    '<div class="empty" id="empty"><div class="empty-emoji">🌿</div><p>New conversation started.</p><p class="empty-sub">Hold the <strong>Talk</strong> button or type below whenever you\'re ready.</p></div>';
+    '<div class="empty" id="empty"><div class="empty-emoji">🌿</div><p>New conversation started.</p><p class="empty-sub">Press the <strong>Talk</strong> button or type below whenever you\'re ready.</p></div>';
   window.speechSynthesis && window.speechSynthesis.cancel();
   setStatus("");
 });
