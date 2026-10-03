@@ -161,79 +161,87 @@ textInput.addEventListener("keydown", (e) => {
   }
 });
 
-// ---------- speech recognition (press & hold) ----------
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-let listening = false;
+// ---------- voice: record in the browser, transcribe on the server ----------
+// We record audio and send it to /api/transcribe (Groq Whisper). This is far
+// more reliable than the browser's built-in speech recognition, which depends
+// on Google's service and frequently fails with a network error.
+let mediaRecorder = null;
+let audioChunks = [];
+let recording = false;
 
-if (SR) {
-  recognition = new SR();
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-  recognition.continuous = true; // keep listening until the user taps stop
+const canRecord = Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
-  let finalText = "";
-  let errored = false;
-  recognition.onstart = () => {
-    listening = true;
-    finalText = "";
-    errored = false;
-    talkBtn.classList.add("listening");
-    talkBtn.textContent = "■ Listening… tap to stop";
-    setStatus("Listening…");
+async function startRecording() {
+  if (recording || busy) return;
+  setStatus("Starting microphone…");
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    setStatus("Microphone is blocked. Allow mic access for this site, then tap Talk.");
+    return;
+  }
+  audioChunks = [];
+  const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+  mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size) audioChunks.push(e.data);
   };
-  recognition.onresult = (ev) => {
-    let interim = "";
-    finalText = "";
-    for (let i = 0; i < ev.results.length; i++) {
-      const r = ev.results[i];
-      if (r.isFinal) finalText += r[0].transcript;
-      else interim += r[0].transcript;
-    }
-    setStatus(`“${(finalText || interim).trim()}”`);
-  };
-  recognition.onerror = (ev) => {
-    const msgs = {
-      "no-speech": "I didn't catch that. Tap Talk and try again.",
-      "not-allowed": "Microphone is blocked. Allow mic access for this site, then tap Talk.",
-      "service-not-allowed": "Microphone is blocked. Allow mic access for this site, then tap Talk.",
-      "audio-capture": "No microphone found. Check your mic, or just type below.",
-      "network": "Speech service had a network hiccup. Please try again.",
-      "aborted": "",
-    };
-    errored = true;
-    setStatus(ev.error in msgs ? msgs[ev.error] : "Voice error: " + ev.error);
-  };
-  recognition.onend = () => {
-    listening = false;
+  mediaRecorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    recording = false;
     talkBtn.classList.remove("listening");
     talkBtn.textContent = "🎤 Press to talk";
-    const said = finalText.trim();
-    if (said) sendUserText(said);
-    else if (!errored) setStatus("");
-  };
-
-  // Tap once to start, tap again to stop.
-  const toggleListen = (e) => {
-    e.preventDefault();
-    if (busy) return;
-    if (listening) {
-      recognition.stop();
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+    if (!blob.size) {
+      setStatus("I didn't catch any audio. Tap Talk and try again.");
       return;
     }
-    recognition.lang = langSelect.value;
-    setStatus("Starting microphone…");
-    try {
-      recognition.start();
-    } catch (err) {
-      // start() throws if called while a previous session is still closing.
-      setStatus("One moment, tap Talk again.");
-    }
+    await transcribeAndSend(blob);
   };
-  talkBtn.addEventListener("click", toggleListen);
+  mediaRecorder.start();
+  recording = true;
+  talkBtn.classList.add("listening");
+  talkBtn.textContent = "■ Listening… tap to stop";
+  setStatus("Listening…");
+}
+
+function stopRecording() {
+  if (recording && mediaRecorder) {
+    setStatus("Transcribing…");
+    mediaRecorder.stop();
+  }
+}
+
+async function transcribeAndSend(blob) {
+  const lang = (langSelect.value || "en-US").split("-")[0];
+  try {
+    const res = await fetch(`/api/transcribe?lang=${encodeURIComponent(lang)}`, {
+      method: "POST",
+      headers: { "content-type": blob.type || "audio/webm" },
+      body: blob,
+    });
+    const data = await res.json();
+    if (data.text && data.text.trim()) {
+      sendUserText(data.text.trim());
+    } else if (data.error) {
+      setStatus("Could not transcribe that. You can type instead.");
+    } else {
+      setStatus("I didn't catch that. Tap Talk and try again.");
+    }
+  } catch {
+    setStatus("Could not reach the transcription service. You can type instead.");
+  }
+}
+
+if (canRecord) {
+  talkBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (recording) stopRecording();
+    else startRecording();
+  });
 } else {
-  // No speech recognition: make the button explain itself, typing still works.
-  talkBtn.textContent = "🎤 Voice not supported — type below";
+  talkBtn.textContent = "🎤 Voice not supported, type below";
   talkBtn.disabled = true;
   talkBtn.style.opacity = "0.6";
 }

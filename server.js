@@ -21,6 +21,7 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const GROQ_WHISPER_MODEL = process.env.GROQ_WHISPER_MODEL || "whisper-large-v3-turbo";
 
 // Free providers (Groq, Gemini) are preferred before the paid ones.
 const PROVIDER = GROQ_KEY
@@ -134,6 +135,39 @@ function parseJsonLoose(text) {
   }
 }
 
+// ---------- speech to text (Groq Whisper) ----------
+// Browser speech recognition is unreliable (it depends on Google's service and
+// often throws "network"). Recording in the browser and transcribing here with
+// Whisper is far more dependable, and reuses the Groq key the app already has.
+async function transcribeWithGroq(audioBuf, contentType, lang) {
+  if (!GROQ_KEY) throw new Error("transcription requires a Groq API key");
+  const ct = (contentType || "audio/webm").split(";")[0];
+  const ext = ct.includes("ogg") ? "ogg" : ct.includes("wav") ? "wav" : ct.includes("mp4") || ct.includes("m4a") ? "mp4" : "webm";
+  const boundary = "----warmline" + Date.now().toString(16);
+  const field = (name, value) =>
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`);
+  const parts = [field("model", GROQ_WHISPER_MODEL), field("response_format", "json")];
+  if (lang) parts.push(field("language", lang));
+  parts.push(
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.${ext}"\r\nContent-Type: ${ct}\r\n\r\n`
+    )
+  );
+  parts.push(audioBuf, Buffer.from(`\r\n--${boundary}--\r\n`));
+  const body = Buffer.concat(parts);
+  const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${GROQ_KEY}`,
+      "content-type": `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`transcribe ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return (data.text || "").trim();
+}
+
 // ---------- Offline fallback companion ----------
 
 function detectLang(text) {
@@ -241,6 +275,25 @@ function readBody(req) {
   });
 }
 
+// Binary-safe body reader for uploaded audio.
+function readBodyBuffer(req, maxBytes = 15_000_000) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (c) => {
+      size += c.length;
+      if (size > maxBytes) {
+        reject(new Error("audio too large"));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -273,7 +326,22 @@ async function serveStatic(req, res) {
 const server = createServer(async (req, res) => {
   try {
     if (req.method === "GET" && req.url === "/api/health") {
-      return sendJson(res, 200, { ok: true, provider: PROVIDER });
+      return sendJson(res, 200, { ok: true, provider: PROVIDER, voice: Boolean(GROQ_KEY) });
+    }
+
+    if (req.method === "POST" && req.url.startsWith("/api/transcribe")) {
+      if (!GROQ_KEY)
+        return sendJson(res, 200, { text: "", error: "voice needs a Groq key; please type instead" });
+      try {
+        const lang = new URL(req.url, "http://x").searchParams.get("lang") || "";
+        const audio = await readBodyBuffer(req);
+        if (!audio.length) return sendJson(res, 200, { text: "", error: "no audio received" });
+        const text = await transcribeWithGroq(audio, req.headers["content-type"], lang);
+        return sendJson(res, 200, { text });
+      } catch (e) {
+        console.error("transcribe error:", e.message);
+        return sendJson(res, 200, { text: "", error: e.message });
+      }
     }
 
     if (req.method === "POST" && req.url === "/api/chat") {
